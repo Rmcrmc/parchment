@@ -2,11 +2,126 @@ var BACKSPACE_KEYCODE = 8;
 var RETURN_KEYCODE = 13;
 var SHIFT_KEYCODE = 16;
 
+var keyCodeMap = {
+  8  : "backward_delete_char",  // delete
+  12 : "accept_line",
+  37 : "backward_char",         // left arrow
+  38 : "previous_history",      // up arrow
+  39 : "forward_char",          // right arrow
+  40 : "next_history",          // down arrow
+};
+
+function LineEditor() {
+  this.line = "";
+  this.pos = 0;
+  this._history = [""];
+  this._saved_history = {};
+  this._history_pos = 0;
+
+  var self = this;
+
+  this.accept_line = function() {
+    var line = self.line;
+
+    self.line = "";
+    self.pos = 0;
+
+    for (var i in self._saved_history) {
+      self._history[i] = self._saved_history[i];
+    }
+    self._saved_history = {};
+
+    if (line.length > 0) {
+      self._history[self._history.length-1] = line;
+      self._history.push("");
+    }
+    self._history_pos = self._history.length - 1;
+
+    return line;
+  };
+
+  this.forward_char = function() {
+    if (self.pos < self.line.length) {
+      self.pos++;
+    }
+  };
+
+  this.backward_char = function() {
+    if (self.pos > 0) {
+      self.pos--;
+    }
+  };
+
+  this.backward_delete_char = function() {
+    if (self.pos > 0) {
+      self.line = self.line.slice(0, -1);
+      self.pos--;
+    }
+  };
+
+  this.self_insert = function(c) {
+    var newChar = String.fromCharCode(c);
+
+    // Don't allow multiple spaces in a row.
+    if (newChar == " ") {
+      if (self.pos > 0 && self.line[self.pos-1] == " ") {
+        return;
+      } else if (self.pos < self.line.length && self.line[self.pos] == " ") {
+        return;
+      }
+    }
+
+    self.line = (self.line.slice(0, self.pos) + newChar +
+                 self.line.slice(self.pos));
+    self.pos++;
+  };
+
+  // Save the current history entry and replace it with the current text.
+  // It will be replaced after accept_line runs.
+  this._save_history_excursion = function() {
+
+    // This function only has relevance if the text of the current history
+    // entry is different from the current input buffer.
+    if (self._history[self._history_pos] != self._line) {
+
+      // Save the current history entry if it has not already been saved.
+      if (!(self._history_pos in self._saved_history)) {
+        self._saved_history[self._history_pos] =
+          self._history[self._history_pos];
+      }
+
+      // Set the current history entry to the current input buffer.
+      self._history[self._history_pos] = self.line;
+    }
+  };
+
+  this.previous_history = function() { 
+    if (self._history_pos <= 0) {
+      return;
+    }
+    self._save_history_excursion();
+    self._history_pos--;
+    self.line = self._history[self._history_pos];
+    self.pos = self.line.length;
+  };
+
+  this.next_history = function() { 
+    if (self._history_pos+1 >= self._history.length) {
+      return;
+    }
+    self._save_history_excursion();
+    self._history_pos++;
+    self.line = self._history[self._history_pos];
+    self.pos = self.line.length;
+  };
+}
+
+
 function WebZui(logfunc) {
   this._size = [80, 25];
   this._console = null;
   this._activeWindow = 0;
-  this._inputString = "";
+  this._lineEditor = new LineEditor();
   this._currentCallback = null;
   this._foreground = "default";
   this._background = "default";
@@ -143,42 +258,46 @@ function WebZui(logfunc) {
         return false;
       }
 
-      var oldInputString = self._inputString;
+      var oldInputString = self._lineEditor.line;
+      var oldPos = self._lineEditor.pos;
 
-      if (event.charCode) {
-        var newChar = String.fromCharCode(event.charCode);
-        var lastChar = self._inputString.slice(-1);
-        if (!(newChar == " " && lastChar == " ")) {
-          self._inputString += newChar;
-        }
-      } else {
-        switch (event.keyCode) {
-        case BACKSPACE_KEYCODE:
-          if (self._inputString) {
-            self._inputString = self._inputString.slice(0, -1);
-          }
-          break;
-        case RETURN_KEYCODE:
-          var finalInputString = self._inputString;
-          var callback = self._currentCallback;
+      if (event.keyCode == RETURN_KEYCODE) {
+        var finalInputString = self._lineEditor.accept_line();
+        var callback = self._currentCallback;
 
-          self._inputString = "";
-          self._currentCallback = null;
-          finalInputString = finalInputString.entityify();
-          self._lastSeenY = $("#current-input").get(0).offsetTop;
-          var styles = $("#current-input").attr("class");
-          $("#current-input").replaceWith(
-            ('<span class="finished-input ' + styles + '">' +
-             finalInputString + '</span><br/>')
-          );
-          callback(finalInputString);
-        }
+        self._currentCallback = null;
+        finalInputString = finalInputString.entityify();
+        self._lastSeenY = $("#current-input").get(0).offsetTop;
+        var styles = $("#current-input").attr("class");
+        $("#current-input").replaceWith(
+          ('<span class="finished-input ' + styles + '">' +
+           finalInputString + '</span><br/>')
+        );
+        callback(finalInputString);
+      } else if (event.keyCode in keyCodeMap) {
+          self._lineEditor[keyCodeMap[event.keyCode]]();
+      } else if (event.charCode in keyCodeMap) {
+          self._lineEditor[keyCodeMap[event.charCode]]();
+      } else if (event.charCode) {
+        self._lineEditor.self_insert(event.charCode);
       }
+
       if ($("#current-input") &&
-          oldInputString != self._inputString) {
+          (oldInputString != self._lineEditor.line ||
+           oldPos != self._lineEditor.pos)) {
+        var prefix = self._lineEditor.line.slice(0, self._lineEditor.pos);
+        var suffix;
+        var point;
+        if (self._lineEditor.line.length <= self._lineEditor.pos) {
+          suffix = "";
+          point = "&nbsp;";
+        } else {
+          suffix = self._lineEditor.line.slice(self._lineEditor.pos+1);
+          point = self._lineEditor.line[self._lineEditor.pos];
+        }
         $("#current-input").html(
-          self._inputString.entityify() +
-            '<span id="cursor">_</span>'
+          prefix.entityify() + '<span id="cursor">' + point + '</span>' +
+          suffix.entityify()
         );
       }
       return false;
