@@ -3,63 +3,63 @@ var RETURN_KEYCODE = 13;
 var SHIFT_KEYCODE = 16;
 
 var keyCodeMap = {
-  8  : "backward_delete_char",  // delete
-  12 : "accept_line",
-  37 : "backward_char",         // left arrow
-  38 : "previous_history",      // up arrow
-  39 : "forward_char",          // right arrow
-  40 : "next_history",          // down arrow
+  8  : "backwardDeleteChar",  // delete
+  12 : "acceptLine",
+  37 : "backwardChar",         // left arrow
+  38 : "previousHistory",      // up arrow
+  39 : "forwardChar",          // right arrow
+  40 : "nextHistory"          // down arrow
 };
 
 function LineEditor() {
   this.line = "";
   this.pos = 0;
   this._history = [""];
-  this._saved_history = {};
-  this._history_pos = 0;
+  this._savedHistory = {};
+  this._historyPos = 0;
 
   var self = this;
 
-  this.accept_line = function() {
+  this.acceptLine = function() {
     var line = self.line;
 
     self.line = "";
     self.pos = 0;
 
-    for (var i in self._saved_history) {
-      self._history[i] = self._saved_history[i];
+    for (var i in self._savedHistory) {
+      self._history[i] = self._savedHistory[i];
     }
-    self._saved_history = {};
+    self._savedHistory = {};
 
     if (line.length > 0) {
       self._history[self._history.length-1] = line;
       self._history.push("");
     }
-    self._history_pos = self._history.length - 1;
+    self._historyPos = self._history.length - 1;
 
     return line;
   };
 
-  this.forward_char = function() {
+  this.forwardChar = function() {
     if (self.pos < self.line.length) {
       self.pos++;
     }
   };
 
-  this.backward_char = function() {
+  this.backwardChar = function() {
     if (self.pos > 0) {
       self.pos--;
     }
   };
 
-  this.backward_delete_char = function() {
+  this.backwardDeleteChar = function() {
     if (self.pos > 0) {
       self.line = self.line.slice(0, -1);
       self.pos--;
     }
   };
 
-  this.self_insert = function(c) {
+  this.selfInsert = function(c) {
     var newChar = String.fromCharCode(c);
 
     // Don't allow multiple spaces in a row.
@@ -77,41 +77,41 @@ function LineEditor() {
   };
 
   // Save the current history entry and replace it with the current text.
-  // It will be replaced after accept_line runs.
-  this._save_history_excursion = function() {
+  // It will be replaced after acceptLine runs.
+  this._saveHistoryExcursion = function() {
 
     // This function only has relevance if the text of the current history
     // entry is different from the current input buffer.
-    if (self._history[self._history_pos] != self._line) {
+    if (self._history[self._historyPos] != self._line) {
 
       // Save the current history entry if it has not already been saved.
-      if (!(self._history_pos in self._saved_history)) {
-        self._saved_history[self._history_pos] =
-          self._history[self._history_pos];
+      if (!(self._historyPos in self._savedHistory)) {
+        self._savedHistory[self._historyPos] =
+          self._history[self._historyPos];
       }
 
       // Set the current history entry to the current input buffer.
-      self._history[self._history_pos] = self.line;
+      self._history[self._historyPos] = self.line;
     }
   };
 
-  this.previous_history = function() { 
-    if (self._history_pos <= 0) {
+  this.previousHistory = function() {
+    if (self._historyPos <= 0) {
       return;
     }
-    self._save_history_excursion();
-    self._history_pos--;
-    self.line = self._history[self._history_pos];
+    self._saveHistoryExcursion();
+    self._historyPos--;
+    self.line = self._history[self._historyPos];
     self.pos = self.line.length;
   };
 
-  this.next_history = function() { 
-    if (self._history_pos+1 >= self._history.length) {
+  this.nextHistory = function() {
+    if (self._historyPos+1 >= self._history.length) {
       return;
     }
-    self._save_history_excursion();
-    self._history_pos++;
-    self.line = self._history[self._history_pos];
+    self._saveHistoryExcursion();
+    self._historyPos++;
+    self.line = self._history[self._historyPos];
     self.pos = self.line.length;
   };
 }
@@ -262,7 +262,7 @@ function WebZui(logfunc) {
       var oldPos = self._lineEditor.pos;
 
       if (event.keyCode == RETURN_KEYCODE) {
-        var finalInputString = self._lineEditor.accept_line();
+        var finalInputString = self._lineEditor.acceptLine();
         var callback = self._currentCallback;
 
         self._currentCallback = null;
@@ -279,7 +279,7 @@ function WebZui(logfunc) {
       } else if (event.charCode in keyCodeMap) {
           self._lineEditor[keyCodeMap[event.charCode]]();
       } else if (event.charCode) {
-        self._lineEditor.self_insert(event.charCode);
+        self._lineEditor.selfInsert(event.charCode);
       }
 
       if ($("#current-input") &&
