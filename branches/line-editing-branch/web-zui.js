@@ -294,6 +294,11 @@ function WebZui(logfunc) {
         } else {
           suffix = self._lineEditor.line.slice(self._lineEditor.pos+1);
           point = self._lineEditor.line[self._lineEditor.pos];
+          if (point == " ") {
+            point = "&nbsp;";
+          } else {
+            point = point.entityify();
+          }
         }
         $("#current-input").html(
           prefix.entityify() + '<span id="cursor">' + point + '</span>' +
