@@ -54,7 +54,8 @@ function LineEditor() {
 
   this.backwardDeleteChar = function() {
     if (self.pos > 0) {
-      self.line = self.line.slice(0, -1);
+      self.line = (self.line.slice(0, self.pos - 1) +
+                   self.line.slice(self.pos));
       self.pos--;
     }
   };
