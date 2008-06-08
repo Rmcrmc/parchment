@@ -54,8 +54,16 @@ function LineEditor() {
 
   this.backwardDeleteChar = function() {
     if (self.pos > 0) {
-      self.line = (self.line.slice(0, self.pos - 1) +
-                   self.line.slice(self.pos));
+      var beforeCursor = self.line.slice(0, self.pos - 1);
+      var afterCursor = self.line.slice(self.pos);
+
+      // Don't allow multiple spaces in a row.
+      if (afterCursor.charAt(0) == " " &&
+          beforeCursor.charAt(beforeCursor.length-1) == " ") {
+        afterCursor = afterCursor.slice(1);
+      }
+
+      self.line = beforeCursor + afterCursor;
       self.pos--;
     }
   };
@@ -291,7 +299,7 @@ function WebZui(logfunc) {
         var point;
         if (self._lineEditor.line.length <= self._lineEditor.pos) {
           suffix = "";
-          point = "&nbsp;";
+          point = "_";
         } else {
           suffix = self._lineEditor.line.slice(self._lineEditor.pos+1);
           point = self._lineEditor.line[self._lineEditor.pos];
