@@ -1,15 +1,27 @@
 var BACKSPACE_KEYCODE = 8;
 var RETURN_KEYCODE = 13;
 var SHIFT_KEYCODE = 16;
+var LEFT_KEYCODE = 37;
+var UP_KEYCODE = 38;
+var RIGHT_KEYCODE = 39;
+var DOWN_KEYCODE = 40;
 
-var keyCodeMap = {
-  8  : "backwardDeleteChar",  // delete
-  12 : "acceptLine",
-  37 : "backwardChar",         // left arrow
-  38 : "previousHistory",      // up arrow
-  39 : "forwardChar",          // right arrow
-  40 : "nextHistory"          // down arrow
+// We want to use named constants, but because of the way JS's object
+// literals work, our named constants will just be strings; we'll
+// convert them to their integer values at load time.
+var __originalKeyCodeMap = {
+  BACKSPACE_KEYCODE  : "backwardDeleteChar",
+  LEFT_KEYCODE       : "backwardChar",
+  UP_KEYCODE         : "previousHistory",
+  RIGHT_KEYCODE      : "forwardChar",
+  DOWN_KEYCODE       : "nextHistory"
 };
+
+var keyCodeMap = {};
+
+for (name in __originalKeyCodeMap) {
+  keyCodeMap[this[name]] = __originalKeyCodeMap[name];
+}
 
 function LineEditor() {
   this.line = "";
@@ -58,6 +70,14 @@ function LineEditor() {
       var afterCursor = self.line.slice(self.pos);
 
       // Don't allow multiple spaces in a row.
+
+      // TODO: This is a little strange and unintuitive.  It'd be nice
+      // to find a better solution for this, e.g. one that allows the
+      // user to have multiple spaces in their input w/o using
+      // non-breaking spaces.  Some alternatives include just using a
+      // specially styled text input field and using blank images for
+      // spaces.
+
       if (afterCursor.charAt(0) == " " &&
           beforeCursor.charAt(beforeCursor.length-1) == " ") {
         afterCursor = afterCursor.slice(1);
@@ -73,9 +93,10 @@ function LineEditor() {
 
     // Don't allow multiple spaces in a row.
     if (newChar == " ") {
-      if (self.pos > 0 && self.line[self.pos-1] == " ") {
+      if (self.pos > 0 && self.line.charAt(self.pos-1) == " ") {
         return;
-      } else if (self.pos < self.line.length && self.line[self.pos] == " ") {
+      } else if (self.pos < self.line.length &&
+                 self.line.charAt(self.pos) == " ") {
         return;
       }
     }
@@ -250,7 +271,6 @@ function WebZui(logfunc) {
           if (event.charCode) {
             keyCode = event.charCode;
           } else {
-            // TODO: Deal w/ arrow keys, etc.
             switch (event.keyCode) {
             case RETURN_KEYCODE:
               keyCode = event.keyCode;
@@ -302,7 +322,7 @@ function WebZui(logfunc) {
           point = "_";
         } else {
           suffix = self._lineEditor.line.slice(self._lineEditor.pos+1);
-          point = self._lineEditor.line[self._lineEditor.pos];
+          point = self._lineEditor.line.charAt(self._lineEditor.pos);
           if (point == " ") {
             point = "&nbsp;";
           } else {
