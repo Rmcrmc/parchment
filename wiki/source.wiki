@@ -1,0 +1,1 @@
+The Parchment source code is now hosted at GitHub: http://github.com/curiousdannii/parchment
