@@ -173,7 +173,7 @@
 	}
 
 
-function WebZui(logfunc) {
+function WebZui( engine, logfunc) {
 	  var widthInChars = gIsIphone ? 38 : 80;
 
 	  this._size = [widthInChars, 25];
@@ -189,6 +189,8 @@ function WebZui(logfunc) {
 	  this._expectedHash = window.location.hash;
 	  this._isFixedWidth = false;
 	  this._bufferMode = 0;
+	  
+	  this.engine = engine;
 
 	this.bottom = $("#bottom");
 	this.current_input = $("#current-input");
@@ -486,7 +488,7 @@ function WebZui(logfunc) {
 	    },
 
 	    onLineInput: function(callback) {
-    	  if(window.engine.m_version <= 3) { // Redraw status line automatically in V1-V3
+    	  if ( self.engine.m_version <= 3 ) { // Redraw status line automatically in V1-V3
     	    var oldwin = self._activeWindow;
 	        var oldrev = this._reverseVideo;
 	        if (!self._console)
@@ -494,7 +496,7 @@ function WebZui(logfunc) {
 	        self._console.moveTo(0,0);
 	        self._activeWindow = 1;
 	        this._reverseVideo = true;
-	        self.onPrint(window.engine.getStatusLine(self._console.width));
+	        self.onPrint( self.engine.getStatusLine(self._console.width) );
 	        this._reverseVideo = oldrev;
 	        self._activeWindow = oldwin;
           }
@@ -849,124 +851,3 @@ function WebZui(logfunc) {
 	    $("#iphone-text-field").click(onClick);
 	  }
 	}
-
-FatalError.prototype.onError = function(e) {
-  var message = e.message;
-  if (typeof e.message == "string")
-    message = message.entityify();
-  $("#content").append('<div class="error">An error occurred:<br/>' +
-                       '<pre>' + message + '\n\n' + e.traceback +
-                       '</pre></div>');
-}
-
-function _webZuiStartup() {
-  var logfunc = function() {};
-
-	if (window.loadFirebugConsole)
-		window.loadFirebugConsole();
-
-  if (window.console)
-    logfunc = function(msg) { console.log(msg); };
-
-  window.engine = new GnustoEngine(logfunc);
-  var zui = new WebZui(logfunc);
-  var runner = new EngineRunner(engine, zui, logfunc);
-
-	window.story = new file.story(gZcode.slice(), storyName);
-	story.load(engine);
-	logfunc("Story type: " + story.filetype);
-
-  if (window.location.hash) {
-    var b64data = window.location.hash.slice(1);
-    engine.loadSavedGame(file.base64_decode(b64data));
-    logfunc('Loading savefile');
-  }
-
-  runner.run();
-}
-
-function processZcodeAppspotResponse(content) {
-  if (content.error)
-    throw new FatalError("Error loading story: " + content.error.entityify());
-  processBase64Zcode(content.data);
-}
-
-function processBase64Zcode(data, decodedSoFar) {
-  var CHUNK_SIZE = 50000;
-
-  var firstChunk = data.slice(0, CHUNK_SIZE);
-  var restOfData = data.slice(CHUNK_SIZE);
-
-  if (typeof(decodedSoFar) == "undefined")
-    decodedSoFar = [];
-
-  $("#progress-text").html("Decoding " + data.length +
-                           " more bytes...");
-  file.base64_decode(firstChunk, decodedSoFar);
-
-  var next_func;
-
-  if (restOfData)
-    next_func = function decode_rest() {
-      processBase64Zcode(restOfData, decodedSoFar);
-    };
-  else
-    next_func = function finish() {
-      gZcode = decodedSoFar;
-      $("#progress-text").html("Starting interpreter...");
-      _webZuiStartup();
-    };
-
-  window.setTimeout(next_func, 10);
-}
-
-var gThisUrl = location.protocol + "//" + location.host + location.pathname;
-var gBaseUrl = gThisUrl.slice(0, gThisUrl.lastIndexOf("/"));
-var gStory = "";
-var gZcode = null;
-var gIsIphone = navigator.userAgent.match(/iPhone/i);
-var storyName = '';
-
-var IF_ARCHIVE_PREFIX = "if-archive/";
-var ZCODE_APPSPOT_URL = "http://zcode.appspot.com/";
-
-function getFilenameFromUrl(url) {
-  var lastSlash = url.lastIndexOf("/");
-  return url.slice(lastSlash + 1);
-}
-
-$(document).ready(function() {
-  var qs = new Querystring();
-  var story = qs.get("story", "stories/troll.zblorb.js");
-  storyName = getFilenameFromUrl(story);
-
-  storyName = storyName ? storyName + " - Parchment" : "Parchment";
-  window.document.title = storyName;
-
-  $("#progress-text").html("Retrieving story file...");
-
-  gStory = story;
-  if (story.slice(-3).toLowerCase() == ".js")
-    jQuery.getScript(story);
-  else
-    jQuery.getScript(ZCODE_APPSPOT_URL + "?url=" + escape(story) +
-                     "&jsonp=processZcodeAppspotResponse");
-});
-
-var topwin_element;
-var topwin_dist = '0';
-
-// Make the statusline always move to the top of the screen in MSIE < 7
-$(document).ready(function() {
-    topwin_element = document.getElementById('top-window');
-    topwin_dist = '0';
-    var ieMatch = navigator.appVersion.match(/MSIE (\d+)\./);
-    if(ieMatch && +ieMatch[1]<7) {
-        topwin_element.style.position = 'absolute';
-        var move_element=function() {
-            topwin_element.style.top = 1 * (document.documentElement.scrollTop + 1 * topwin_dist) + 'px';
-        };
-        window.onscroll = move_element;
-        window.onresize = move_element;
-    }
-});
