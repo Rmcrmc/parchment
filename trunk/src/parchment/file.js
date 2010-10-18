@@ -6,7 +6,7 @@
  * Licenced under the GPL v2
  * http://code.google.com/p/parchment
  */
-(function(window){
+(function(window, $){
 
 // Text to byte array and vice versa
 function text_to_array(text, array)
@@ -116,10 +116,9 @@ else
 // XMLHttpRequest feature support
 var xhr = jQuery.ajaxSettings.xhr(),
 support = {
-	// Unfortunately Opera's overrideMimeType() doesn't work
-	binary: xhr.overrideMimeType !== undefined && !$.browser.opera,
+	// Unfortunately in Opera < 10.5 overrideMimeType() doesn't work
+	binary: xhr.overrideMimeType !== undefined && !( $.browser.opera && parseFloat( $.browser.version ) < 10.5 ),
 	cross_origin: xhr.withCredentials !== undefined
-//	cross_origin: 0
 };
 
 // Clean-up
@@ -131,7 +130,7 @@ function download_to_array( url, callback )
 	// URL regexp
 	var urldomain = /^(file:|(\w+:)?\/\/[^\/?#]+)/,
 	
-	// If url is an array we are being given a binary and a backup encoded file
+	// If url is an array we are being given a binary and a backup 'JSONP' file
 	backup_url;
 	if ( $.isArray( url ) )
 	{
@@ -143,8 +142,25 @@ function download_to_array( url, callback )
 	var page_domain = urldomain.exec(location)[0],
 	data_exec = urldomain.exec(url),
 	data_domain = data_exec ? data_exec[0] : page_domain,
-
-	options = {};
+	
+	// Chrome > 4 doesn't allow file: to file: XHR
+	// It should however work for the rest of the world, so we have to test here, rather than when first checking for binary support
+	chrome = /chrome\/(.)/i.exec( navigator.userAgent ),
+	binary = data_domain === "file:" && chrome && parseInt( chrome[1] ) > 4 ? 0 : support.binary,
+	
+	options,
+	
+	// Utility function to download a legacy/backup file
+	download_legacy = function( url )
+	{
+		window['processBase64Zcode'] = function( data )
+		{
+			callback( base64_decode( data ));
+			window.processBase64Zcode = null;
+			try { delete window.processBase64Zcode; } catch(e) {}
+		};
+		$.getScript( url );
+	};
 
 	// What are we trying to download here?
 	/*
@@ -153,31 +169,26 @@ function download_to_array( url, callback )
 		file	file	0		0		2	Fail
 			legacy						3	Load legacy file
 			same		1				4	Load directly
-			same		0		1		5	Load encoded backup file directly
+						0		1		5	Load JSONP backup file directly
 										6	Load from proxy (base64 + JSONP)
 	*/
-
-	// Case #1: file: loaded from http:
-	// Case #2: file: with neither binary support nor a backup encoded file
-	if ( data_domain == 'file:' && ( page_domain != data_domain || ( !support.binary && !backup_url ) ) )
-	{
-		throw "Can't load local files with this browser, sorry!";
-	}
 
 	// Case #3: Load legacy file
 	if ( url.slice(-3).toLowerCase() == '.js' )
 	{
-		window['processBase64Zcode'] = function( data )
-		{
-			callback( base64_decode( data ));
-			delete window['processBase64Zcode'];
-		};
-		$.getScript( url );
+		download_legacy( url );
 		return;
 	}
 
+	// Case #1: file: loaded from http:
+	// Case #2: file: with neither binary support nor a backup encoded file
+	if ( data_domain == 'file:' && ( page_domain != data_domain || ( !binary && !backup_url ) ) )
+	{
+		throw "Can't load local files with this browser, sorry!";
+	}
+
 	// Case #4: Local file with binary support
-	if ( support.binary && page_domain == data_domain )
+	if ( binary && page_domain == data_domain )
 	{
 		options = {
 			beforeSend: function ( XMLHttpRequest )
@@ -193,31 +204,28 @@ function download_to_array( url, callback )
 		};
 	}
 	
-	// Cases #5/6: Load base64 encoded data
+	// Cases #5/6: No binary support
 	else
-	{	
-		// Case #5: Load encoded backup file directly
-		if ( page_domain == data_domain && backup_url )
+	{
+		// Case #5: Load 'JSONP' backup file
+		if ( backup_url )
 		{
-			options.url = backup_url;
-		}
-		
+			download_legacy( backup_url );
+			return;
+		}	
+
 		// Case #6: Load from proxy (base64 + JSONP)
-		else
-		{
-			options = {
-				data: {
-					encode: 'base64',
-					url: url
-				},
-				dataType: 'jsonp',
-				url: parchment.options.proxy_url
-			};
-		}
-		
-		options.success = function ( data )
-		{
-			callback( base64_decode( $.trim( data )));
+		options = {
+			data: {
+				encode: 'base64',
+				url: url
+			},
+			dataType: 'jsonp',
+			success: function ( data )
+			{
+				callback( base64_decode( $.trim( data )));
+			},
+			url: parchment.options.proxy_url
 		};
 	}
 	
@@ -295,7 +303,7 @@ function download_to_array( url, callback )
 */
 	
 	// Log the options for debugging
-	;;; if ( window.console && console.log ) console.log( options );
+	;;; if ( window.console && console.log ) console.log( '$.ajax() options from download_to_array(): ', options );
 	
 	// Get the file
 	options.error = function ( XMLHttpRequest, textStatus )
@@ -340,4 +348,4 @@ window.file = {
 	support: support
 };
 
-})(window);
+})(window, jQuery);
