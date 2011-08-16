@@ -1,8 +1,6 @@
 The Parchment source code is now hosted at !GitHub:
   * Parchment itself: http://github.com/curiousdannii/parchment
   * Gnusto: http://github.com/curiousdannii/gnusto
-  * App Engine proxy: http://github.com/curiousdannii/parchment-proxy
-
-You may also be interested in Quixe, Zarf's Glulx interpreter which will soon be added to Parchment:
   * Quixe: http://github.com/erkyrath/quixe
-  * !GlkOte (Javascript Glk implementation): http://github.com/erkyrath/glkote
+  * !GlkOte (Javascript Glk implementation included for Quixe support): http://github.com/erkyrath/glkote
+  * App Engine proxy: http://github.com/curiousdannii/parchment-proxy
