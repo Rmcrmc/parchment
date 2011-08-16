@@ -1,0 +1,29 @@
+#summary Options set via parchment_options
+
+= Introduction =
+
+If you have your own version of Parchment you will probably want to customise the options. Do so by adding some simple Javascript to your HTML:
+
+{{{
+<script>
+parchment_options = {
+    default_story: [ 'stories/mygame.z5', 'stories/mygame.z5.js' ],
+};
+</script>
+}}}
+
+
+= Details =
+
+Parchment allows the following options to be customised:
+
+|| *Name* || *Default* || *Description* || *Example* ||
+|| container|| `#parchment` || A selector for the top HTML element which we will have complete control over || `container: '#gamediv'` ||
+|| default_story || none || The default story to load. If unspecified, will show the default panel instead. This can either be a single URL, or it can be an array of two URLs, where the second is a backup Javascript encoded story file || `default_story: 'stories/mygame.z5'` <br> or <br> `default_story: [ 'stories/mygame.z5', 'stories/mygame.z5.js' ]` ||
+|| lib_path || `lib/` || Where to find the Javascript libraries Parchment needs || `lib_path: 'parchment/'` ||
+|| lock_options || `0` || If set to 1 will stop people from specifying additional options in the query string || `lock_options: 1` ||
+|| lock_story || `0` || If set to 1 will stop people from specifying another story in the query string || `lock_story: 1` ||
+|| page_title || `1` || Set to 0 if you don't want Parchment to overwrite your `<title>` || `page_title: 0` ||
+|| panels || `[ 'search', 'url', 'about' ]` || An array of front page panels to display if there is no default story || `panels: [ 'about', 'search', 'url' ]` ||
+|| proxy_url || `http://zcode.appspot.com/proxy/` || The URL of the [https://github.com/curiousdannii/parchment-proxy proxy server] || `proxy_url: 'http://yourdomain.com/proxy/'` ||
+|| width || `80` || The width of the screen in characters. You might want to set this to a smaller value if you're putting it in an `<iframe>`, but you can do so via the [QueryStringOptions query string]. || `width: 32` ||
